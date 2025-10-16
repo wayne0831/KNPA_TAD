@@ -1,5 +1,7 @@
 
-
+###########################################################################################################
+# import libraries
+###########################################################################################################
 
 # -*- coding: utf-8 -*-
 """
@@ -15,6 +17,10 @@ import re
 from datetime import timedelta, datetime
 import os
 import locale
+
+###########################################################################################################
+# set user-defined functions
+###########################################################################################################
 
 def preprocess(data_path, infer=False, seq_len=30, tr_ratio=0.7, val_ratio=0.2, te_ratio=0.1, event_rules=None, start_time=None):
     """
@@ -42,6 +48,7 @@ def preprocess(data_path, infer=False, seq_len=30, tr_ratio=0.7, val_ratio=0.2, 
     te_path = DATA_PATH[data_path]['te']
     infer_path = DATA_PATH[data_path]['infer']
 
+    # TODO: 여기서 컬럼명 바꾸지말고, 컬럼명을 미리 바꿔서 dataset load하기
     col_mapping = {
         '집계 일시': 'TIME',
         'NODE_ID': 'NODE_ID',
@@ -51,13 +58,19 @@ def preprocess(data_path, infer=False, seq_len=30, tr_ratio=0.7, val_ratio=0.2, 
         'AVG_SPD': 'AVG_SPD',
         'OCPN_RATE': 'OCPN_RATE',
     }
+
+    print(f"데이터 로드: {raw_path}")
+    df = pd.read_csv(raw_path, encoding='cp949')
+
+    # TODO: NODE_ID + ACRS_ID -> LINK_ID 생성
     
+    # TODO: config.py의 INPUT_COLS, GRP_COLS 활용
     input_cols = ['TRF_QNTY', 'AVG_SPD', 'OCPN_RATE']
     group_cols = ['NODE_ID', 'LINK_ID', 'lane']
     
-    print(f"데이터 로드: {raw_path}")
-    df = pd.read_csv(raw_path, encoding='cp949')
-    
+    # TODO: 공유받은 데이터에 맞춰 전처리 코드 변경
+    # TIME 컬럼 처리, 누락시간대 교통정보 0 기입 등
+
     df = df.rename(columns=col_mapping)
     
     # 1. 정규표현식을 사용한 날짜/시간 파싱 로직
@@ -96,7 +109,8 @@ def preprocess(data_path, infer=False, seq_len=30, tr_ratio=0.7, val_ratio=0.2, 
 
     df[input_cols] = df[input_cols].fillna(0)
     
-    df['pred'] = 0
+    # TODO: LABEL과 같이 컬럼명 변경
+    df['pred'] = 0 
     
     def get_time_interval(hour):
         if    0 <= hour <= 7:  return 0
@@ -143,4 +157,4 @@ def preprocess(data_path, infer=False, seq_len=30, tr_ratio=0.7, val_ratio=0.2, 
         print(f"학습 데이터 저장 완료: {tr_path}")
         print(f"검증 데이터 저장 완료: {val_path}")
         print(f"테스트 데이터 저장 완료: {te_path}")
-preprocess('SIHEUNG_REAL', infer=False, seq_len=30, tr_ratio=0.7, val_ratio=0.2, te_ratio=0.1, event_rules=None, start_time=None)
+

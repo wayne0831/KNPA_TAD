@@ -27,6 +27,8 @@ if PIPELINE['is_test']:
     test_set, test_meta = load_dataset(csv_path=DATA_PATH[TAD_VER]['te'], seq_len=SEQ_LEN, stride=STRIDE)
     print('==============Data loaded!==============')
 
+    #TODO: pickle로 저장된 training set의 mean/std을 활용해 valid/test/infer set scaling
+
     # 모델 불러오기
     print('==============Model load==============')
     # 1) base model load

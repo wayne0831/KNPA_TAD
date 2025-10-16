@@ -35,7 +35,7 @@ DATA_PATH = { # 데이터셋 경로
         'infer': '../data/pangyo_real/inference/pangyo_14days_infer.csv',
     },
     'SIHEUNG_REAL': { # 시흥 스마트교차로 데이터
-        'raw':   '../data/siheung_real/raw/siheung_14days_raw.csv',   
+        'raw':   '../data/siheung_real/raw/siheung_14days_raw_v2.csv',   
         'tr':    '../data/siheung_real/train/siheung_14days_tr.csv', 
         'val':   '../data/siheung_real/valid/siheung_14days_val.csv',
         'te':    '../data/siheung_real/test/siheung_14days_te.csv',
@@ -95,15 +95,20 @@ CHK_PATH = {
 # set data configurations
 ###########################################################################################################
 
-# data preprocess input
+## data preprocess input
 #MELT_COLS  = ['TOT_DT', 'LINK_ID', 'LANE_NO']
 #PIVOT_COL  = 'TOT_DT'
 
-# model input features
+## model input features
+GRP_COLS   = ['TOT_DT', 'LINK_ID', 'LANE_NO']
 INPUT_COLS = ['TRF_QNTY', 'AVG_SPD', 'OCPN_RATE']
 
-TE_RES_COLS    = []
-INFER_RES_COLS = []
+## model output features
+# 테스트결과: 모델 운영에는 활용안함
+TE_RES_COLS  = []
+
+# 추론결과: 시간, 링크ID, 차로번호, 차로이상임계치, 차로재구성오차, 차로이상여부, 링크이상여부
+INFER_RES_COLS = ['RES_DT', 'LINK_ID', 'LANE_NO', 'LANE_ANOMALY_THR', 'LANE_REC_ERROR', 'LANE_DET_RES', 'LINK_DET_RES']
 
 ###########################################################################################################
 # set model configurations
@@ -151,7 +156,7 @@ PIPELINE = {
     #'save_dataset': True,
 
     # 모델 학습
-    'is_train': True, # 평소에는 False, 2주에 한번씩 True
+    'is_train': False, # 평소에는 False, 2주에 한번씩 True
 
     # 테스트
     'is_test': True,              # 성능 테스트
