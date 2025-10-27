@@ -129,7 +129,7 @@ def train(model, dataset, epochs=10, lr=1e-3, base_dim=5, pkl_save_path=PICKLE_P
 def load_dataset(csv_path, seq_len=30, stride=15):
     df = pd.read_csv(csv_path)
 
-    base_features = ['VEHS(ALL)', 'SPEEDAVGARITH(ALL)', 'OCCUPRATE(ALL)']
+    base_features = ['TRF_QNTY', 'AVG_SPD', 'OCPN_RATE']
     onehot_features = [col for col in df.columns if col.startswith('TimeInt_')]
     features = base_features + onehot_features
 
@@ -141,8 +141,8 @@ def load_dataset(csv_path, seq_len=30, stride=15):
     X, y, meta = [], [], []
     grouped = df.groupby(['LINK_ID','lane'])
 
-    for (_, _), group in grouped:
-        group = group.sort_values('date').reset_index(drop=True)
+    for (_, _), group in grouped:    
+        group = group.sort_values(by=['DAY', 'TIME']).reset_index(drop=True)
         vals = group[features].values
         pred_seq = group['pred'].values if 'pred' in group.columns else np.zeros(len(group))
 

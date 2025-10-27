@@ -50,7 +50,7 @@ def preprocess(data_path, infer=False, seq_len=30, tr_ratio=0.7, val_ratio=0.2, 
 
     # TODO: 여기서 컬럼명 바꾸지말고, 컬럼명을 미리 바꿔서 dataset load하기
     col_mapping = {
-        '집계 일시': 'TIME',
+        'TOT_DT': 'TOT_DT',
         'NODE_ID': 'NODE_ID',
         'ACSR_ID': 'LINK_ID',
         'LANE_NO': 'lane',
@@ -74,38 +74,52 @@ def preprocess(data_path, infer=False, seq_len=30, tr_ratio=0.7, val_ratio=0.2, 
     df = df.rename(columns=col_mapping)
     
     # 1. 정규표현식을 사용한 날짜/시간 파싱 로직
-    time_parts = df['TIME'].str.extract(r'(오전|오후)\s+(\d+):(\d+):(\d+)')
-    time_parts.columns = ['ampm', 'hour', 'minute', 'second']
+    time_parts = df['TOT_DT'].str.extract(r'(\d+-\d+-\d+)\s+(오전|오후)\s+(\d+):(\d+)')
+    time_parts.columns = ['date_str', 'ampm', 'hour', 'minute']
     
+    # b. 24시간 형식으로 변환
     time_parts['hour'] = pd.to_numeric(time_parts['hour'])
+    time_parts['minute'] = pd.to_numeric(time_parts['minute'])
     
-    time_parts.loc[time_parts['ampm'] == '오후', 'hour'] += 12
-    time_parts.loc[(time_parts['ampm'] == '오전') & (time_parts['hour'] == 12), 'hour'] = 0
-    time_parts.loc[(time_parts['ampm'] == '오후') & (time_parts['hour'] == 24), 'hour'] = 12
-
-    df['temp_dt'] = pd.to_datetime(
+    # 오후 1시 ~ 11시: 시에 12를 더함
+    time_parts.loc[
+        (time_parts['ampm'] == '오후') & (time_parts['hour'] < 12),
+        'hour'
+    ] += 12
+    # 오전 12시 (자정): 0시로 변환
+    time_parts.loc[
+        (time_parts['ampm'] == '오전') & (time_parts['hour'] == 12),
+        'hour'
+    ] = 0
+    
+    # c. 최종 'Time_24H' 열 생성
+    df['Time_24H'] = (
         time_parts['hour'].astype(str).str.zfill(2) + ':' +
-        time_parts['minute'].astype(str).str.zfill(2) + ':' +
-        time_parts['second'].astype(str).str.zfill(2),
-        format='%H:%M:%S',
-        errors='coerce'
+        time_parts['minute'].astype(str).str.zfill(2) + ':00'
     )
     
-    # 2. DAY와 TIME 컬럼 생성
-    is_midnight_start = (df['temp_dt'].shift(-1).dt.hour == 0) & (df['temp_dt'].dt.hour == 23) & (df['temp_dt'].dt.minute >= 55)
+    # -----------------------------------------------------------
+    # 3. 'DAY' 열 생성 (날짜 문자열 기반)
+    # -----------------------------------------------------------
     
-    df['is_new_day'] = is_midnight_start.astype(int)
-    df['DAY'] = df['is_new_day'].cumsum() + 1
-    df.drop('is_new_day', axis=1, inplace=True)
+    # date_str (예: '25-9-20')의 고유값 목록을 추출
+    unique_dates = time_parts['date_str'].unique()
     
-    df['TIME'] = df['temp_dt'].dt.strftime('%H:%M:%S')
+    # 날짜를 기준으로 DAY 번호 할당 (첫 번째 고유 날짜 = 1, 두 번째 = 2, ...)
+    date_to_day_map = {date: i + 1 for i, date in enumerate(unique_dates)}
+    
+    # 'date_str' 열을 사용하여 'DAY' 열 생성
+    df['DAY'] = time_parts['date_str'].map(date_to_day_map)
+    
+    # -----------------------------------------------------------
+    # 4. 'TIME' 열 생성 및 임시 열 정리
+    # -----------------------------------------------------------
+    
+    # 'TIME' 열은 Time_24H 열을 그대로 사용합니다.
+    df['TIME'] = df['Time_24H']
 
-    df.dropna(subset=['temp_dt'], inplace=True)
-    df.drop('temp_dt', axis=1, inplace=True)
-    
-    if df.empty:
-        print("[경고] 데이터 전처리 후 DataFrame이 비어있습니다. 원본 데이터의 '집계 일시' 컬럼을 확인하세요.")
-        return
+    # 임시로 생성된 'Time_24H' 열을 삭제 (선택 사항)
+    df.drop(columns=['Time_24H'], inplace=True)
 
     df[input_cols] = df[input_cols].fillna(0)
     
@@ -119,10 +133,17 @@ def preprocess(data_path, infer=False, seq_len=30, tr_ratio=0.7, val_ratio=0.2, 
         elif 18 <= hour <= 19: return 3
         elif 20 <= hour <= 23: return 4
         return -1
-
-    df['TimeInterval'] = pd.to_datetime(df['TIME'], format='%H:%M:%S').dt.hour.apply(get_time_interval)
-    df = pd.get_dummies(df, columns=['TimeInterval'], prefix='TimeInt')
     
+    df['TimeInterval'] = pd.to_datetime(df['TIME'], format='%H:%M:%S').dt.hour.apply(get_time_interval)
+
+    all_intervals = [0, 1, 2, 3, 4]
+    
+    # TimeInterval 열을 범주형으로 변환하고, categories=all_intervals로 모든 범주를 강제합니다.
+    df['TimeInterval'] = pd.Categorical(df['TimeInterval'], categories=all_intervals)
+
+
+    df = pd.get_dummies(df, columns=['TimeInterval'], prefix='TimeInt')
+
     final_cols = ['DAY', 'TIME'] + input_cols + [col for col in df.columns if 'TimeInt' in col] + ['pred']
     df = df.reindex(columns=group_cols + final_cols, fill_value=0).drop_duplicates()
     
