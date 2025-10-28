@@ -142,7 +142,7 @@ def load_dataset(csv_path, seq_len=30, stride=15):
     grouped = df.groupby(['LINK_ID','lane'])
 
     for (_, _), group in grouped:    
-        group = group.sort_values(by=['DAY', 'TIME']).reset_index(drop=True)
+        group = group.sort_values(by=['TOT_DT']).reset_index(drop=True)
         vals = group[features].values
         pred_seq = group['pred'].values if 'pred' in group.columns else np.zeros(len(group))
 
