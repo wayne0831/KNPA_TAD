@@ -203,15 +203,17 @@ def preprocess(data_path, infer=False, seq_len=30, tr_ratio=0.7, val_ratio=0.2, 
         print(f"테스트 데이터 저장 완료: {te_path}")
 
 
-# raw data불러와서 train/valid/test로 구분
-# TODO: 여기서는 scaling 전 데이터가 폴더에 저장되어야 함
-preprocess(data_path   = TAD_VER, 
-           infer       = False, 
-           seq_len     = SEQ_LEN, 
-           tr_ratio    = 0.7, 
-           val_ratio   = 0.2, 
-           te_ratio    = 0.1, # 실제 운영시에는 testset 필요없음
-           event_rules = None, 
-           start_time  = None)
+
+if __name__ == "__main__":
+    # raw data불러와서 train/valid/test로 구분
+    # TODO: 여기서는 scaling 전 데이터가 폴더에 저장되어야 함
+    preprocess(data_path   = TAD_VER, 
+            infer       = False, 
+            seq_len     = SEQ_LEN, 
+            tr_ratio    = 0.7, 
+            val_ratio   = 0.2, 
+            te_ratio    = 0.1, # 실제 운영시에는 testset 필요없음
+            event_rules = None, 
+            start_time  = None)
 
 
