@@ -74,8 +74,6 @@ model = MTSTAutoencoder(input_dim   = INPUT_DIM,
                         resolutions = RESOLUTIONS, 
                         n_layers    = N_LAYERS)
 
-model_path = CHK_PATH['TAD']
-
 train(model     = model,
         dataset   = train_set,
         epochs    = EPOCH,
