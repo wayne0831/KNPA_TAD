@@ -4,7 +4,7 @@ save_data_on_exit = True
 save_history = True
 save_non_project_files = False
 project_type = 'empty-project-type'
-recent_files = ['src\\TAD_data_preprocess.py', 'src\\TAD_train.py', 'src\\config.py', 'src\\TAD_result_analysis.py', 'src\\TAD_model.py']
+recent_files = ['src\\TAD_data_preprocess.py', 'src\\TAD_train.py', 'src\\config.py', 'src\\TAD_result_analysis.py', 'src\\TAD_model.py', 'src\\TAD_test.py', 'untitled0.py']
 
 [main]
 version = 0.2.0

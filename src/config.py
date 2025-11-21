@@ -47,6 +47,8 @@ PICKLE_PATH = { # pickle 경로
     # 모델 training loss 평균/표준편차
     'TAD': {
         'tr_loss_stat': f'./pickle/TAD/tr_loss_stat_{TAD_VER}.pkl', 
+            'scaler_stat': f'./pickle/TAD/scaler_stat_{TAD_VER}.pkl',
+            'threshold': f'./pickle/TAD/threshold_{TAD_VER}.pkl'
     },
     'RL': {
         'q_table': f'./pickle/RL/q_table_{RL_VER}.pkl', 

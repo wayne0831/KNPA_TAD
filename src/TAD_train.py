@@ -57,8 +57,8 @@ print('==============Data load for TAD==============')
 # TODO: training set scaling하고 training set의 mean/std을 pickle로 저장해야함
 # data_scaling 함수 구현 -> TAD_data_preprocess.py에 구현
 # pickle로 저장해야만 TAD_test.py에서 validation/test/infer set에 적용가눙 
-scaler_path = 'standard_scaler_pickle.pkl'
-train_data = scale_data(DATA_PATH[TAD_VER]['tr'], 'tr', scaler_path)
+
+train_data = scale_data(DATA_PATH[TAD_VER]['tr'], 'tr', PICKLE_PATH['TAD']['scaler_stat'])
 
 
 train_set, _ = load_dataset(train_data, seq_len=SEQ_LEN, stride=STRIDE)
@@ -117,7 +117,7 @@ print(f"📁 Model saved to {CHK_PATH['TAD']}")
 
 # 1. Validation 데이터 로드
 print('\n==============Loading Validation Data for Threshold Calculation==============')
-val_data = scale_data(DATA_PATH[TAD_VER]['val'], 'val', scaler_path)
+val_data = scale_data(DATA_PATH[TAD_VER]['val'], 'val', PICKLE_PATH['TAD']['scaler_stat'])
 val_set, val_meta = load_dataset(val_data, seq_len=SEQ_LEN, stride=STRIDE)
 
 # 2. 복원 오차 계산 (detect_anomalies 함수 사용)
@@ -137,13 +137,10 @@ print(f"✅ Calculated {len(val_results)} reconstruction errors.")
 print('⚙️ Calculating Group Thresholds...')
 group_thresholds = get_group_thresholds(val_results)
 
-
 # 4. 임계값 저장
+threshold_path =  PICKLE_PATH['TAD']['threshold'] 
+with open(threshold_path, 'wb') as f:
+    pickle.dump(group_thresholds, f)
 
-threshold_path = 'threshold_pickle.pkl' # 경로 지정 필요
-#os.makedirs(os.path.dirname(threshold_path), exist_ok=True)
-
-# CSV 파일로 저장
-group_thresholds.to_csv(threshold_path, index=False)
 print(f"📁 Group thresholds saved to {threshold_path}")
 print('=============================================================================')

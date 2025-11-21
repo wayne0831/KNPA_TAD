@@ -1,197 +1,231 @@
+# -*- coding: utf-8 -*-
+"""
+Created on Fri Nov 21 18:38:21 2025
+
+@author: user
+"""
+
 ###########################################################################################################
+# test.py
+###########################################################################################################
+
 # import libraries
-###########################################################################################################
-
 import os
-from config import *
-#from TAD_train import target
-from TAD_model import *
-from TAD_result_analysis import *
-from RL_model import *
-from sklearn.metrics import precision_score, recall_score, f1_score, classification_report, roc_auc_score, average_precision_score
-from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay
+import torch
+import numpy as np
+import pandas as pd
+import pickle
+from torch.utils.data import TensorDataset
 
-###########################################################################################################
-# model test
-###########################################################################################################
+# 가정: 아래 모듈 및 변수들은 src 디렉토리에서 import 됩니다.
+from src.config import *
+from src.TAD_data_preprocess import * 
+from src.TAD_model import * 
+from src.TAD_result_analysis import * 
+from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay, classification_report
+import matplotlib.pyplot as plt # 시각화를 위해 추가 (Confusion Matrix)
+from sklearn.preprocessing import StandardScaler # scale_data 함수 내에서 사용됨을 가정
 
-model_type = 'TAD' # 'RL'
-model_path = CHK_PATH[model_type]
-model_name = os.path.basename(model_path)
-res_path   = RES_PATH[model_type]
 
-if PIPELINE['is_test']: 
-    # 데이터 로드
-    print('==============Data load for test==============')
-    val_set, val_meta   = load_dataset(csv_path=DATA_PATH[TAD_VER]['val'], seq_len=SEQ_LEN, stride=STRIDE)
-    test_set, test_meta = load_dataset(csv_path=DATA_PATH[TAD_VER]['te'], seq_len=SEQ_LEN, stride=STRIDE)
-    print('==============Data loaded!==============')
+# =========================================================================================================
+# Helper Functions (TAD_data_preprocess.py 또는 TAD_result_analysis.py에 정의되어야 하나, 편의상 여기에 통합)
+# =========================================================================================================
 
-    #TODO: pickle로 저장된 training set의 mean/std을 활용해 valid/test/infer set scaling
+def calculate_link_anomaly(df: pd.DataFrame) -> pd.DataFrame:
+    """
+    TOT_DT와 LINK_ID가 동일한 그룹 내에서 'anomaly'가 하나라도 1이면 'link_anomaly'를 1로 설정합니다.
+    """
+    # 'TOT_DT'와 'LINK_ID'를 기준으로 그룹화하여 이상 판정(1)이 있는지 확인합니다.
+    link_anomaly_check = df.groupby(['TOT_DT', 'LINK_ID'])['anomaly'].transform(lambda x: x.any()).astype(int)
+    
+    # 결과를 'link_anomaly' 열에 반영합니다.
+    df['link_anomaly'] = link_anomaly_check
+    return df
 
-    # 모델 불러오기
-    print('==============Model load==============')
-    # 1) base model load
-    model = build_base_model()
 
-    model.load_state_dict(torch.load(model_path))
-    print('==============Model loaded!==============')
-    print(f'Model name: {model_name}')
+# =========================================================================================================
+# 1. run_test 함수: testResult.csv 생성
+# =========================================================================================================
 
-    # 결과 산출
-    print('==============Test and get results==============')
-    # validation/test set의 link + lane별 이상치 임계치 도출, test set 이상여부 판단
-    val_results      = detect_anomalies(model, val_set, val_meta.copy())
-    group_thresholds = get_group_thresholds(val_results) 
-    test_results_raw = detect_anomalies(model, test_set, test_meta.copy()) 
-    test_results     = apply_group_threshold(test_results_raw, group_thresholds) # link + lane별 이상여부 판단
+def run_test(model, base_dim, threshold_df, scaler_path, data_path_key, test_type='te'):
+    """
+    테스트 데이터셋을 사용하여 모델 성능을 평가하고 testResult.csv를 생성합니다.
+    """
+    print(f"\n======== Running Test on {test_type.upper()} Data ========")
+    
+    # 1. 데이터 로드 및 스케일링 
+    test_df_scaled = scale_data(data_path=DATA_PATH[data_path_key][test_type], 
+                                data_type='te', 
+                                scaler_path=scaler_path)
+    
+    # 2. 시퀀스 데이터셋 생성 
+    test_set, test_meta = load_dataset(df=test_df_scaled, 
+                                       seq_len=SEQ_LEN, 
+                                       stride=STRIDE)
 
-    # 결과 저장
-    print('==============Save results==============')
-    val_results.to_csv(res_path['val'], index=False)
-    test_results.to_csv(res_path['te'], index=False)
-    group_thresholds.to_csv(res_path['grp_thr'], index=False)
+    # 3. 이상 탐지 수행
+    print("⚙️ Detecting anomalies...")
+    test_results = detect_anomalies(
+        model, 
+        test_set, 
+        test_meta.copy(), 
+        threshold_df=threshold_df, 
+        base_dim=base_dim
+    )
+    
+    # 4. 결과 칼럼명 변경 및 정리
+    test_results['Thresholds'] = test_results['Thresholds_applied'] 
+    test_results['recon_error'] = test_results['error']            
+    test_results['anomaly'] = test_results['anomaly'].astype(int)  # 이상여부
+    test_results['true_anomaly'] = test_results['pred'].astype(int) # 실제 이상여부 (pred)
+    
+    # 5. 정답 여부 계산
+    test_results['is_correct'] = (test_results['anomaly'] == test_results['true_anomaly']).astype(int)
+    
+    # 6. 링크 이상 여부 계산
+    test_results = calculate_link_anomaly(test_results)
+    
+    # 7. 최종 결과 DataFrame 정리
+    final_cols = ['TOT_DT', 'LINK_ID', 'LANE_NO', 'Thresholds', 'recon_error', 
+                  'anomaly', 'link_anomaly', 'true_anomaly', 'is_correct']
+    
+    result_df = test_results[final_cols]
+    
+    # 8. CSV 파일 저장
+    result_df.to_csv(RES_PATH['TAD']['te_res'], index=False)
+    print(f"✅ Test Results saved to {RES_PATH['TAD']['te_res']}")
+    
+    # 9. 성능 지표 계산 및 출력
+    y_true = result_df['true_anomaly'].values
+    y_pred = result_df['anomaly'].values
+    
+    print("\n[Classification Report]")
+    print(classification_report(y_true, y_pred, target_names=['Normal', 'Anomaly']))
+    
+    if PIPELINE['visualize_conf_mat']:
+        plt.figure(figsize=(8, 6))
+        cm = confusion_matrix(y_true, y_pred)
+        disp = ConfusionMatrixDisplay(confusion_matrix=cm, display_labels=['Normal', 'Anomaly'])
+        disp.plot(cmap=plt.cm.Blues)
+        plt.title('Confusion Matrix (Test)')
+        plt.savefig('confusion_matrix_test.png') # 경로 지정 필요
+        print(f"✅ Confusion Matrix saved to {'confusion_matrix_test.png'}")
 
-    # 4) === NEW === 평균 비교 후 도메인 필터링
-    cmp_df = filter_by_domain(model, test_set, test_results.copy())
-    cmp_df.to_csv(res_path['cmp_df'], index=False)
 
-    # 5) === NEW === 링크+시간 단위 최종 이상 집계
-    link_time_df = aggregate_link_time(cmp_df, col='final_anomaly')
-    link_time_df.to_csv(res_path['agg_link'], index=False)
-    print('==============Results saved!==============')
-# end if
+# =========================================================================================================
+# 2. run_inference 함수: inferenceReslt.csv 생성
+# =========================================================================================================
 
-###########################################################################################################
-# visulaize results
-###########################################################################################################
+def run_inference(model, base_dim, threshold_df, scaler_path, data_path_key, infer_type='infer'):
+    """
+    추론 데이터셋을 사용하여 이상 여부를 판정하고 inferenceReslt.csv를 생성합니다.
+    """
+    print(f"\n======== Running Inference on {infer_type.upper()} Data ========")
+    
+    # 1. 데이터 로드 및 스케일링
+    infer_df_scaled = scale_data(data_path=DATA_PATH[data_path_key][infer_type], 
+                                 data_type='val', # 추론 시에는 validation 통계 사용
+                                 scaler_path=scaler_path)
+    
+    # 2. 시퀀스 데이터셋 생성
+    infer_set, infer_meta = load_dataset(df=infer_df_scaled, 
+                                         seq_len=SEQ_LEN, 
+                                         stride=STRIDE)
 
-# 결과 시각화
-if PIPELINE['visualize_conf_mat']:
-    # 정확한 평가를 위한 조건 확인
-    if 'pred' in test_results.columns:
-        y_true = test_results['pred']
-        y_pred = test_results['anomaly']
+    # 3. 이상 탐지 수행
+    print("⚙️ Detecting anomalies...")
+    infer_results = detect_anomalies(
+        model, 
+        infer_set, 
+        infer_meta.copy(), 
+        threshold_df=threshold_df, 
+        base_dim=base_dim
+    )
+    
+    # 4. 결과 칼럼명 변경 및 정리
+    infer_results['Thresholds'] = infer_results['Thresholds_applied']
+    infer_results['recon_error'] = infer_results['error']
+    infer_results['anomaly'] = infer_results['anomaly'].astype(int) # 이상여부
+    
+    # 5. 링크 이상 여부 계산
+    infer_results = calculate_link_anomaly(infer_results)
+    
+    # 6. 최종 결과 DataFrame 정리 (추론 결과는 정답 여부/실제 이상여부 제외)
+    final_cols = ['TOT_DT', 'LINK_ID', 'LANE_NO', 'Thresholds', 'recon_error', 
+                  'anomaly', 'link_anomaly']
+    
+    result_df = infer_results[final_cols]
+    
+    # 7. CSV 파일 저장
 
-        # 정밀도, 재현율, F1
-        precision = precision_score(y_true, y_pred, zero_division=0)
-        recall = recall_score(y_true, y_pred, zero_division=0)
-        f1 = f1_score(y_true, y_pred, zero_division=0)
+    result_df.to_csv(RES_PATH['TAD']['infer_res'], index=False)
+    print(f"✅ Inference Results saved to {RES_PATH['TAD']['infer_res']}")
 
-        print(f"\n📊 Test 평가 지표:")
-        print(f" - Precision : {precision:.4f}")
-        print(f" - Recall    : {recall:.4f}")
-        print(f" - F1 Score  : {f1:.4f}")
 
-        # 분류 리포트 출력
-        print("\n📋 상세 리포트:")
-        print(classification_report(y_true, y_pred, digits=4))
+# =========================================================================================================
+# 메인 실행 로직 (main 함수)
+# =========================================================================================================
 
-        # ROC-AUC & PR-AUC
-        try:
-            roc_auc = roc_auc_score(y_true, y_pred)
-            pr_auc = average_precision_score(y_true, y_pred)
-            print(f"\n🔵 ROC-AUC     : {roc_auc:.4f}")
-            print(f"🟢 PR-AUC      : {pr_auc:.4f}")
-        except ValueError as e:
-            print(f"⚠️ AUC 계산 오류: {e}")
+def main():
+    
+    # 1. 실행 조건 확인
+    if not PIPELINE['is_test'] and not PIPELINE['is_infer']:
+        print("PIPELINE['is_test'] 또는 PIPELINE['is_infer']가 True여야 실행됩니다.")
+        return
 
-        # ========================
-        # 🔶 Confusion Matrix (counts)
-        # ========================
-        labels = [0, 1]
-        cm = confusion_matrix(y_true, y_pred, labels=labels)  # counts
-
-        print("\n🧮 Confusion Matrix (counts):")
-        print(pd.DataFrame(
-            cm,
-            index=[f"True {l}" for l in labels],
-            columns=[f"Pred {l}" for l in labels]
-        ))
-
-        if cm.shape == (2, 2):
-            tn, fp, fn, tp = cm.ravel()
-            print(f"\nTN={tn}, FP={fp}, FN={fn}, TP={tp}")
-
-        # 시각화 (counts만)
-        #fig, ax = plt.subplots(figsize=(5, 4))
-        #disp = ConfusionMatrixDisplay(cm, display_labels=labels)
-        #disp.plot(ax=ax, values_format='d', colorbar=False)
-        #ax.set_title('Confusion Matrix ')
-        #plt.tight_layout()
-        #plt.savefig("confusion_matrix.png", dpi=150)
-        #plt.show()
-        #print("🖼️ 혼동행렬 이미지를 'confusion_matrix.png'로 저장했습니다.")
-
+    print("================== Starting TAD Test/Inference ==================")
+    
+    # 2. 모델 로드
+    model = MTSTAutoencoder(input_dim=INPUT_DIM, d_model=D_MODEL, 
+                            n_heads=N_HEADS, seq_len=SEQ_LEN, 
+                            resolutions=RESOLUTIONS, n_layers=N_LAYERS)
+    
+    model_path = CHK_PATH['TAD']
+    if os.path.exists(model_path):
+        model.load_state_dict(torch.load(model_path))
+        model.eval() # 평가 모드 설정
+        print(f"✅ Model loaded from {model_path}")
     else:
-        print("⚠️ Test 데이터에 'pred' 열이 없습니다! 평가 지표 생략됨.")
-# end if
+        print(f"❌ Model checkpoint not found at {model_path}. Please train the model first.")
+        return
 
-if PIPELINE['visualize_line_plot']:
+    # 3. 임계값 로드
+    threshold_path = PICKLE_PATH['TAD']['threshold']
+    try:
+        # ⭐️⭐️ CSV 로드를 Pickle 로드로 변경 ⭐️⭐️
+        with open(threshold_path, 'rb') as f:
+            threshold_df = pickle.load(f)
+        # ⭐️⭐️ -------------------------------- ⭐️⭐️
+        print(f"✅ Thresholds loaded from {threshold_path}")
+    except FileNotFoundError:
+        print(f"❌ Threshold file not found at {threshold_path}. Run validation for threshold calculation first.")
+        return
+    except Exception as e:
+        print(f"❌ Error loading thresholds from pickle: {e}. Check if the file is correctly saved as a DataFrame pickle.")
+        return
 
-    # 기존 merged 생성은 그대로 두고...
-    merged = test_results_raw.merge(group_thresholds, on=['LINK_ID', 'lane'], how='left')
+    # 4. 파이프라인 실행
+    
+    # 테스트 실행 (testResult.csv 생성)
+    if PIPELINE['is_test']:
+        run_test(model=model, 
+                 base_dim=BASE_DIM, 
+                 threshold_df=threshold_df, 
+                 scaler_path=PICKLE_PATH['TAD']['scaler_stat'], 
+                 data_path_key=TAD_VER,
+                 test_type='te')
 
-    # 타입 정리
-    merged['recon_error'] = merged['recon_error'].astype(float)
-    merged['threshold']   = merged['threshold'].astype(float)
-    merged['date']        = pd.to_datetime(merged['date'])
+    # 추론 실행 (inferenceReslt.csv 생성)
+    if PIPELINE['is_infer']:
+        run_inference(model=model, 
+                      base_dim=BASE_DIM, 
+                      threshold_df=threshold_df, 
+                      scaler_path=PICKLE_PATH['TAD']['scaler_stat'], 
+                      data_path_key=TAD_VER,
+                      infer_type='infer')
+        
+    print("================== Test/Inference Completed ==================")
 
-    # ✅ cmp_df에서 final_anomaly만 끌어와서 합치기 (키는 LINK_ID, lane, date)
-    tmp = cmp_df[['LINK_ID','lane','date','final_anomaly']].copy()
-    tmp['date'] = pd.to_datetime(tmp['date'])
 
-    merged = merged.merge(tmp, on=['LINK_ID','lane','date'], how='left')
-    merged['final_anomaly'] = merged['final_anomaly'].fillna(0).astype(int)
-
-    # 이벤트 룰 정의
-    event_rules = [
-        {'day': 1, 'start': 33300,  'end': 35100,  'link_id': 51,  'lane': [4,5], 'pred': 1},
-        {'day': 2, 'start': 119700, 'end': 120600, 'link_id': 164, 'lane': 2,     'pred': 1},
-        {'day': 3, 'start': 220500, 'end': 221400, 'link_id': 113, 'lane': 2,     'pred': 1},
-        {'day': 4, 'start': 321300, 'end': 323100, 'link_id': 136, 'lane': [3,4], 'pred': 1},
-        {'day': 5, 'start': 346500, 'end': 432900, 'link_id': 'ALL','lane': 'ALL','pred': 1},
-        {'day': 6, 'start': 461700, 'end': 468900, 'link_id': 42,  'lane': 1,     'pred': 1},
-        {'day': 7, 'start': 580500, 'end': 581400, 'link_id': 67,  'lane': 2,     'pred': 1},
-    ]
-
-    # 'ALL' 제외한 고유 link_id 추출
-    target_links = sorted({rule['link_id'] for rule in event_rules if rule['link_id'] != 'ALL'})
-
-    # 그룹별 시각화
-    for link in target_links:
-        group_df = merged[merged['LINK_ID'] == link].copy()
-        if group_df.empty:
-            print(f"[!] LINK_ID={link}에 해당하는 데이터가 없습니다.")
-            continue
-
-        group_df = group_df.sort_values('date')
-        threshold = group_df['threshold'].iloc[0]
-        anomaly_df = group_df[group_df['pred'] == 1]  # 실제 이상 라벨
-
-        lanes = group_df['lane'].unique()
-        for lane in lanes:
-            lane_df = group_df[group_df['lane'] == lane]
-            anomaly_df_t =  anomaly_df[anomaly_df['lane'] == lane]
-            plt.figure(figsize=(10, 4))
-            plt.plot(lane_df['date'], lane_df['recon_error'], label='Reconstruction Error', color='black', alpha = 0.5)
-            plt.scatter(
-                lane_df[lane_df['pred'] == 1]['date'],
-                lane_df[lane_df['pred'] == 1]['recon_error'],
-                color='red', s=25, label='Actual Anomaly (Label==1)'
-            )
-            plt.scatter(
-                lane_df[lane_df['final_anomaly'] == 1]['date'],
-                lane_df[lane_df['final_anomaly'] == 1]['recon_error'],
-                color='blue', s=10, label='pred final Anomaly (Label==1)'
-            )
-            plt.axhline(threshold, color='orange', linestyle='--', label=f'Threshold: {threshold:.4e}')
-            plt.title(f"LINK_ID={link} | Lane={lane}")
-            plt.xlabel("Time")
-            plt.ylabel("Reconstruction Error")
-            plt.legend()
-            plt.grid(True)
-            plt.tight_layout()
-            plt.xticks(rotation=45)
-            plt.show()
-# end if
+if __name__ == '__main__':
+    main()
