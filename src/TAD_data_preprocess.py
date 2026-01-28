@@ -91,7 +91,7 @@ def preprocess(data_path, infer=False, seq_len=30, tr_ratio=0.7, val_ratio=0.2, 
     min_dt = df['TOT_DT'].min()
     max_dt = df['TOT_DT'].max()
 
-    time_index = pd.date_range(start=min_dt, end=max_dt, freq='1T')
+    time_index = pd.date_range(start=min_dt, end=max_dt, freq='1min')
     group_keys_base = df[['LINK_ID', 'LANE_NO']].drop_duplicates().reset_index(drop=True)
     
     master_index = pd.MultiIndex.from_product(
@@ -187,12 +187,12 @@ def preprocess(data_path, infer=False, seq_len=30, tr_ratio=0.7, val_ratio=0.2, 
         
         # 시계열 순서대로 순차 분할
         total_rows = len(df)
-        tr_end = int(total_rows * tr_ratio)
-        val_end = tr_end + int(total_rows * val_ratio)
+        tr_end     = int(total_rows * tr_ratio)
+        val_end    = tr_end + int(total_rows * val_ratio)
         
-        tr_df = df.iloc[:tr_end]
+        tr_df  = df.iloc[:tr_end]
         val_df = df.iloc[tr_end:val_end]
-        te_df = df.iloc[val_end:]
+        te_df  = df.iloc[val_end:]
         
         tr_df.to_csv(tr_path, index=False)
         val_df.to_csv(val_path, index=False)
@@ -202,18 +202,16 @@ def preprocess(data_path, infer=False, seq_len=30, tr_ratio=0.7, val_ratio=0.2, 
         print(f"검증 데이터 저장 완료: {val_path}")
         print(f"테스트 데이터 저장 완료: {te_path}")
 
-
-
 if __name__ == "__main__":
     # raw data불러와서 train/valid/test로 구분
     # TODO: 여기서는 scaling 전 데이터가 폴더에 저장되어야 함
     preprocess(data_path   = TAD_VER, 
-            infer       = False, 
-            seq_len     = SEQ_LEN, 
-            tr_ratio    = 0.7, 
-            val_ratio   = 0.2, 
-            te_ratio    = 0.1, # 실제 운영시에는 testset 필요없음
-            event_rules = None, 
-            start_time  = None)
+               infer       = False, 
+               seq_len     = SEQ_LEN, 
+               tr_ratio    = 0.7, 
+               val_ratio   = 0.2, 
+               te_ratio    = 0.1, # 실제 운영시에는 testset 필요없음
+               event_rules = None, 
+               start_time  = None)
 
 

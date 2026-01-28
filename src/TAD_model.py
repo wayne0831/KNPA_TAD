@@ -145,18 +145,30 @@ def load_dataset(csv_path, seq_len=30, stride=15):
     #grouped = df.groupby(['LINK_ID','lane'])
     grouped = df.groupby(['LINK_ID','LANE_NO'])
 
+    print(7777777777777777777)
+    print(grouped)
+
     for (_, _), group in grouped:    
         group = group.sort_values(by=['TOT_DT']).reset_index(drop=True)
+
+        print(66666666666666666666666)
+        print(group)
+
         vals = group[features].values
         pred_seq = group['pred'].values if 'pred' in group.columns else np.zeros(len(group))
 
         # <-- stride 적용: 0부터 끝까지, seq_len 단위로 윈도우를 stride 간격으로 이동
+        #print('8888888888888888')
+        #print(len(vals) - seq_len + 1, stride) -1, 15
         for i in range(0, len(vals) - seq_len + 1, stride):
             X.append(vals[i:i+seq_len])
             y.append(vals[i:i+seq_len])
             row = group.iloc[i+seq_len-1].copy()
             row['pred'] = int(np.any(pred_seq[i:i+seq_len]))
             meta.append(row)
+
+    #print('9999999999999999999')
+    #print(np.array(X).shape)
 
     X = torch.tensor(np.array(X), dtype=torch.float32)
     y = torch.tensor(np.array(y), dtype=torch.float32)

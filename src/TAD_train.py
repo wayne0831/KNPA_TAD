@@ -3,6 +3,7 @@
 ###########################################################################################################
 
 import os
+
 from config import *
 from TAD_data_preprocess import *
 from TAD_model import *
@@ -51,8 +52,13 @@ preprocess(data_path   = TAD_VER,
 
 # 데이터 로드
 print('==============Data load for TAD==============')
+
 train_set, _ = load_dataset(csv_path=DATA_PATH[TAD_VER]['tr'], seq_len=SEQ_LEN, stride=STRIDE)
+
 print('==============Data loaded!==============')
+#print(len(train_set))
+#print(train_set)
+#print(train_set[0].shape)
 
 # TODO: training set scaling하고 training set의 mean/std을 pickle로 저장해야함
 # data_scaling 함수 구현 -> TAD_data_preprocess.py에 구현
@@ -68,7 +74,6 @@ model = MTSTAutoencoder(input_dim   = INPUT_DIM,
                         n_layers    = N_LAYERS)
 
 model_path = CHK_PATH['TAD']
-
 if os.path.exists(model_path):
 # 2. 파일이 존재하면 기존 모델의 상태(weights) 로드
     print(f'✅ Found existing checkpoint at {model_path}. Loading model state...')
@@ -85,11 +90,11 @@ else:
     # 3. 파일이 존재하지 않으면 새로 학습 시작
     print(f'❌ No checkpoint found at {model_path}. Starting fresh training...')
     train(model     = model,
-            dataset   = train_set,
-            epochs    = EPOCH,
-            lr        = LR,
-            base_dim  = BASE_DIM,
-            pkl_save_path=PICKLE_PATH['TAD']['tr_loss_stat'])
+          dataset   = train_set,
+          epochs    = EPOCH,
+          lr        = LR,
+          base_dim  = BASE_DIM,
+          pkl_save_path=PICKLE_PATH['TAD']['tr_loss_stat'])
 
 print('==============Model trained!==============')
 

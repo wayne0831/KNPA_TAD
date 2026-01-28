@@ -8,9 +8,9 @@ import os
 # set configurations
 ###########################################################################################################
 
-# 대상 데이터: SIHEUNG_SIM, SIHEUNG_REAL, PANGYO_REAL
+# 대상 데이터: SIHEUNG_SIM, SIHEUNG_REAL
 TAD_VER = 'SIHEUNG_REAL' 
-RL_VER  = '0904_v1' ## No
+# RL_VER  = '0904_v1' ## No
 
 ###########################################################################################################
 # set path configurations
@@ -27,13 +27,6 @@ DATA_PATH = { # 데이터셋 경로
         'te':    './data/siheung_sim/test/converted_test.csv',
         'infer': './data/siheung_sim/inference/converted_infer.csv',
     },
-    'PANGYO_REAL': { # 판교 스마트교차로 데이터
-        'raw':   './data/pangyo_real/raw/pangyo_14days_raw.csv',   
-        'tr':    './data/pangyo_real/train/pangyo_14days_tr.csv', 
-        'val':   './data/pangyo_real/valid/pangyo_14days_val.csv',
-        'te':    './data/pangyo_real/test/pangyo_14days_te.csv',
-        'infer': './data/pangyo_real/inference/pangyo_14days_infer.csv',
-    },
     'SIHEUNG_REAL': { # 시흥 스마트교차로 데이터
         'raw':   './data/siheung_real/raw/siheung_14days_raw_v2.csv',   
         'tr':    './data/siheung_real/train/siheung_14days_tr.csv', 
@@ -41,6 +34,13 @@ DATA_PATH = { # 데이터셋 경로
         'te':    './data/siheung_real/test/siheung_14days_te.csv',
         'infer': './data/siheung_real/inference/siheung_14days_infer.csv',
     },
+    # 'PANGYO_REAL': { # 판교 스마트교차로 데이터
+    #     'raw':   './data/pangyo_real/raw/pangyo_14days_raw.csv',   
+    #     'tr':    './data/pangyo_real/train/pangyo_14days_tr.csv', 
+    #     'val':   './data/pangyo_real/valid/pangyo_14days_val.csv',
+    #     'te':    './data/pangyo_real/test/pangyo_14days_te.csv',
+    #     'infer': './data/pangyo_real/inference/pangyo_14days_infer.csv',
+    # }
 }
 
 PICKLE_PATH = { # pickle 경로
@@ -48,9 +48,9 @@ PICKLE_PATH = { # pickle 경로
     'TAD': {
         'tr_loss_stat': f'./pickle/TAD/tr_loss_stat_{TAD_VER}.pkl', 
     },
-    'RL': {
-        'q_table': f'./pickle/RL/q_table_{RL_VER}.pkl', 
-    }
+    # 'RL': {
+    #     'q_table': f'./pickle/RL/q_table_{RL_VER}.pkl', 
+    # }
 }
 
 RES_PATH = { # 모델 예측 결과 경로
@@ -67,24 +67,24 @@ RES_PATH = { # 모델 예측 결과 경로
         'te_res': './result/TAD/testResult.csv',
         'infer_res': './result/TAD/inferenceResult.csv',
     }, 
-    'RL': { # 강화학습 모델
-        'tr':       './result/RL/train/result_train.csv',
-        'val':      './result/RL/valid/result_val.csv',
-        'te':       './result/RL/test/result_test.csv',
-        'infer':    './result/RL/inference/result_infer.csv',
+    # 'RL': { # 강화학습 모델
+    #     'tr':       './result/RL/train/result_train.csv',
+    #     'val':      './result/RL/valid/result_val.csv',
+    #     'te':       './result/RL/test/result_test.csv',
+    #     'infer':    './result/RL/inference/result_infer.csv',
         
-        # TODO 네이밍 변경 필요 / 필요한가?
-        #'grp_thr':  './result/RL/group_threshold.csv',
-        #'cmp_df':   './result/RL/compare_data.csv',
-        #'agg_link': './result/RL/link_time_final.csv',
-    }
+    #     # TODO 네이밍 변경 필요 / 필요한가?
+    #     #'grp_thr':  './result/RL/group_threshold.csv',
+    #     #'cmp_df':   './result/RL/compare_data.csv',
+    #     #'agg_link': './result/RL/link_time_final.csv',
+    # }
 
 }
 
 # 모델 오브젝트 경로
 CHK_PATH = {
     'TAD': f'./checkpoint/TAD/checkpoint_TAD_{TAD_VER}.pt',  # 이상탐지
-    'RL':  f'./checkpoint/RL/checkpoint_RL_{RL_VER}.pt',   # 강화학습
+    #'RL':  f'./checkpoint/RL/checkpoint_RL_{RL_VER}.pt',   # 강화학습
 }
 
 # 인접행렬 경로
@@ -116,8 +116,8 @@ INFER_RES_COLS = ['RES_DT', 'LINK_ID', 'LANE_NO', 'LANE_ANOMALY_THR', 'LANE_REC_
 
 # TODO: 수집주기에 따라 하이퍼파라미터 조절 필요
 # MTST hyperparameters
-SEQ_LEN     = 30
-STRIDE      = 15
+SEQ_LEN     = 10 # 30
+STRIDE      = 5  # 15
 INPUT_DIM   = 8
 D_MODEL     = 64
 N_HEADS     = 4
@@ -129,23 +129,23 @@ LR          = 1e-3
 BASE_DIM    = 5
 BATCH_SIZE  = 32
 
-# RL hyperparameters
-#STATE       = ['NI_0', '0_1', '1_2', '2_3', '3_PI']
-STATE       = ['NI_0', '0_1.5', '1.5_3', '3_PI']
-ACTIONS     = ['FT_NONE', 'FT_ENC', 'FT_DEC', 'FT_ALL']
-EPISODES    = 100
-BUDGET_STEPS = None
-EPSILON     = 0.3
-EPS_START   = 0.3
-EPS_END     = 0.05
-EPS_DECAY   = 'exp'
-EPS_K       = 3.0
-ALPHA_Q     = 0.2
-GAMMA_Q     = 0.9
-LR_FT       = 5e-4
-MICRO_STEPS = 1 
-ALLOW_NEG_REWARD = True
-SEED        = 42
+# # RL hyperparameters
+# #STATE       = ['NI_0', '0_1', '1_2', '2_3', '3_PI']
+# STATE       = ['NI_0', '0_1.5', '1.5_3', '3_PI']
+# ACTIONS     = ['FT_NONE', 'FT_ENC', 'FT_DEC', 'FT_ALL']
+# EPISODES    = 100
+# BUDGET_STEPS = None
+# EPSILON     = 0.3
+# EPS_START   = 0.3
+# EPS_END     = 0.05
+# EPS_DECAY   = 'exp'
+# EPS_K       = 3.0
+# ALPHA_Q     = 0.2
+# GAMMA_Q     = 0.9
+# LR_FT       = 5e-4
+# MICRO_STEPS = 1 
+# ALLOW_NEG_REWARD = True
+# SEED        = 42
 
 ###########################################################################################################
 # set pipeline configurations
@@ -156,17 +156,17 @@ PIPELINE = {
     #'save_dataset': True,
 
     # 모델 학습
-    'is_train': False, # 평소에는 False, 2주에 한번씩 True
+    'is_train': True, # 평소에는 False, 2주에 한번씩 True
 
     # 테스트
-    'is_test': True,              # 성능 테스트
-    'visualize_conf_mat': True,  # confusion matrix 시각화
+    'is_test': True,              # 성능 테스트 (운영 level에서는 고려 안함)
+    'visualize_conf_mat': False,   # confusion matrix 시각화
     'visualize_line_plot': False, # line plot 
 
     # 모델 추론
     'is_infer': True, # 계속 True
 
     # 강화학습
-    'is_rl': True
+    # is_rl': False
 }
 
