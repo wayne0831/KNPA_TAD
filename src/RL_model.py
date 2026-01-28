@@ -25,12 +25,12 @@ import torch.nn as nn
 import torch.optim as optim
 from torch.utils.data import DataLoader, TensorDataset
 import matplotlib.pyplot as plt
-from config import *
+from src.config import *
 import pickle
 import copy, random, numpy as np, torch
 from typing import Dict, List, Tuple, Optional
 from typing import Dict, List, Tuple, Optional
-from TAD_model import MTSTAutoencoder
+from src.TAD_model import MTSTAutoencoder
 import torch.nn.functional as F
 
 ###########################################################################################################

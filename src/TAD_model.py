@@ -9,7 +9,7 @@ import torch.nn as nn
 import torch.optim as optim
 from torch.utils.data import DataLoader, TensorDataset
 import matplotlib.pyplot as plt
-from config import *
+from  src.config import *
 import pickle
 
 ###########################################################################################################
@@ -126,8 +126,8 @@ def train(model, dataset, epochs=10, lr=1e-3, base_dim=5, pkl_save_path=PICKLE_P
             print(f"📁 Loss stats saved to {pkl_save_path}")
 
 # ───── Dataset Loader ─────
-def load_dataset(csv_path, seq_len=30, stride=15):
-    df = pd.read_csv(csv_path)
+# csv 파일 안받고 df를 바로 받는것으로 수정
+def load_dataset(df, seq_len=30, stride=15):
 
     # DHY 1103: ['TRF_QNTY', 'AVG_SPD', 'OCPN_RATE'] -> INPUT_COLS
     base_features = INPUT_COLS # ['TRF_QNTY', 'AVG_SPD', 'OCPN_RATE']

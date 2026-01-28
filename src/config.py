@@ -47,6 +47,8 @@ PICKLE_PATH = { # pickle 경로
     # 모델 training loss 평균/표준편차
     'TAD': {
         'tr_loss_stat': f'./pickle/TAD/tr_loss_stat_{TAD_VER}.pkl', 
+        'scaler_stat': f'./pickle/TAD/scaler_stat_{TAD_VER}.pkl',
+        'threshold': f'./pickle/TAD/threshold_{TAD_VER}.pkl'
     },
     # 'RL': {
     #     'q_table': f'./pickle/RL/q_table_{RL_VER}.pkl', 
@@ -108,7 +110,7 @@ INPUT_COLS = ['TRF_QNTY', 'AVG_SPD', 'OCPN_RATE']
 TE_RES_COLS  = []
 
 # 추론결과: 시간, 링크ID, 차로번호, 차로이상임계치, 차로재구성오차, 차로이상여부, 링크이상여부
-INFER_RES_COLS = ['RES_DT', 'LINK_ID', 'LANE_NO', 'LANE_ANOMALY_THR', 'LANE_REC_ERROR', 'LANE_DET_RES', 'LINK_DET_RES']
+INFER_RES_COLS = ['TOT_DT', 'LINK_ID', 'LANE_NO', 'LANE_ANOMALY_THR', 'LANE_REC_ERROR', 'LANE_DET_RES', 'LINK_DET_RES']
 
 ###########################################################################################################
 # set model configurations
@@ -116,8 +118,8 @@ INFER_RES_COLS = ['RES_DT', 'LINK_ID', 'LANE_NO', 'LANE_ANOMALY_THR', 'LANE_REC_
 
 # TODO: 수집주기에 따라 하이퍼파라미터 조절 필요
 # MTST hyperparameters
-SEQ_LEN     = 10 # 30
-STRIDE      = 5  # 15
+SEQ_LEN     = 3
+STRIDE      = 1
 INPUT_DIM   = 8
 D_MODEL     = 64
 N_HEADS     = 4
@@ -159,7 +161,7 @@ PIPELINE = {
     'is_train': True, # 평소에는 False, 2주에 한번씩 True
 
     # 테스트
-    'is_test': True,              # 성능 테스트 (운영 level에서는 고려 안함)
+    'is_test': False,              # 성능 테스트 (운영 level에서는 고려 안함)
     'visualize_conf_mat': False,   # confusion matrix 시각화
     'visualize_line_plot': False, # line plot 
 

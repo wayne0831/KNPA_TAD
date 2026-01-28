@@ -1,4 +1,3 @@
-
 ###########################################################################################################
 # import libraries
 ###########################################################################################################
@@ -10,13 +9,14 @@ Created on Wed Sep 24 09:24:42 2025
 @author: user
 """
 
-from config import *
+from src.config import *
 import pandas as pd
 import numpy as np
 import re
 from datetime import timedelta, datetime
 import os
-
+import pickle
+from sklearn.preprocessing import StandardScaler  
 
 ###########################################################################################################
 # set user-defined functions
@@ -187,12 +187,12 @@ def preprocess(data_path, infer=False, seq_len=30, tr_ratio=0.7, val_ratio=0.2, 
         
         # 시계열 순서대로 순차 분할
         total_rows = len(df)
-        tr_end     = int(total_rows * tr_ratio)
-        val_end    = tr_end + int(total_rows * val_ratio)
+        tr_end = int(total_rows * tr_ratio)
+        val_end = tr_end + int(total_rows * val_ratio)
         
-        tr_df  = df.iloc[:tr_end]
+        tr_df = df.iloc[:tr_end]
         val_df = df.iloc[tr_end:val_end]
-        te_df  = df.iloc[val_end:]
+        te_df = df.iloc[val_end:]
         
         tr_df.to_csv(tr_path, index=False)
         val_df.to_csv(val_path, index=False)
@@ -202,16 +202,69 @@ def preprocess(data_path, infer=False, seq_len=30, tr_ratio=0.7, val_ratio=0.2, 
         print(f"검증 데이터 저장 완료: {val_path}")
         print(f"테스트 데이터 저장 완료: {te_path}")
 
+
+
+
+# 스케일링 코드(1119)
+def scale_data(data_path, data_type, scaler_path, group_col = ['LINK_ID', 'LANE_NO'], input_cols = INPUT_COLS):
+    
+    """
+    데이터셋을 그룹별로 스케일링하고 스케일링된 DataFrame을 반환합니다.
+    'tr' 타입일 경우 그룹별 통계를 pickle로 저장합니다.    
+    """
+    original_csv_path = data_path
+    df = pd.read_csv(original_csv_path)
+    df_scaled = df.copy()
+
+    if data_type == 'tr':
+         print('  - Calculating group-wise StandardScaler for training set...')
+         group_scalers = {}
+         
+         for group_name, group_df in df.groupby(group_col):
+             scaler = StandardScaler()
+             # StandardScaler 객체에 통계(mean, std)를 fit하고 객체 저장
+             # 2차원 배열 형태로 전달 (values)
+             scaler.fit(group_df[input_cols].values) 
+             group_scalers[group_name] = scaler
+             
+             # 스케일링 적용
+             df_scaled.loc[group_df.index, input_cols] = scaler.transform(group_df[input_cols].values)
+         # 스케일러 저장
+         #os.makedirs(os.path.dirname(scaler_path), exist_ok=True)
+         with open(scaler_path, 'wb') as f:
+             pickle.dump(group_scalers, f)
+         print(f"  - Group Scalers (dict of StandardScaler) successfully SAVED to {scaler_path}")   
+    
+    else:
+        # 2. Validation/Test/Infer Set: 저장된 StandardScaler 로드 및 적용
+        try:
+            with open(scaler_path, 'rb') as f:
+                group_scalers = pickle.load(f)
+        except FileNotFoundError:
+            raise FileNotFoundError(f"❌ Error: Scaler file not found at {scaler_path}. Run with data_type='tr' first!")
+        print(f"  - Group Scalers loaded from {scaler_path}")
+        
+        # 스케일링 적용
+        for group_name, group_df in df.groupby(group_col):
+            if group_name in group_scalers:
+                scaler = group_scalers[group_name]
+                # 스케일링 (transform 사용)
+                df_scaled.loc[group_df.index, input_cols] = scaler.transform(group_df[input_cols].values)
+            else:
+                print(f"⚠️ Warning: Group {group_name} not found in training scalers. Skipping scaling for this group.")
+
+    # 스케일링된 데이터는 파일로 저장하지 않고 리턴
+    return df_scaled
+
+
 if __name__ == "__main__":
     # raw data불러와서 train/valid/test로 구분
     # TODO: 여기서는 scaling 전 데이터가 폴더에 저장되어야 함
     preprocess(data_path   = TAD_VER, 
-               infer       = False, 
-               seq_len     = SEQ_LEN, 
-               tr_ratio    = 0.7, 
-               val_ratio   = 0.2, 
-               te_ratio    = 0.1, # 실제 운영시에는 testset 필요없음
-               event_rules = None, 
-               start_time  = None)
-
-
+            infer       = False, 
+            seq_len     = SEQ_LEN, 
+            tr_ratio    = 0.7, 
+            val_ratio   = 0.2, 
+            te_ratio    = 0.1, # 실제 운영시에는 testset 필요없음
+            event_rules = None, 
+            start_time  = None)
