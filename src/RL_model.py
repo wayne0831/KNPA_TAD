@@ -30,7 +30,7 @@ import pickle
 import copy, random, numpy as np, torch
 from typing import Dict, List, Tuple, Optional
 from typing import Dict, List, Tuple, Optional
-from src.TAD_model import MTSTAutoencoder
+from src.TAD.model import MTSTAutoencoder
 import torch.nn.functional as F
 
 ###########################################################################################################

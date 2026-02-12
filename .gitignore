@@ -3,6 +3,3 @@ TEMP_data/
 
 # 임시 코드
 TEMP_src/
-
-# 파이토치 모델 오브젝트
-*.pt
