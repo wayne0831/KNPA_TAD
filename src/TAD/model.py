@@ -85,7 +85,7 @@ class MTSTAutoencoder(nn.Module):
         return self.decoder(x)
 
 # ───── Train ─────
-def train(model, dataset, epochs=10, lr=1e-3, base_dim=5, pkl_save_path=PICKLE_PATH['TAD']['tr_loss_stat']):
+def train(model, dataset, epochs=10, lr=1e-3, base_dim=BASE_DIM, pkl_save_path=PICKLE_PATH['TAD']['tr_loss_stat']):
     loader = DataLoader(dataset, batch_size=32, shuffle=True)
     opt = optim.Adam(model.parameters(), lr=lr)
     criterion = nn.MSELoss()
@@ -99,7 +99,8 @@ def train(model, dataset, epochs=10, lr=1e-3, base_dim=5, pkl_save_path=PICKLE_P
         for x, y in loader:
             x, y = x.to(device), y.to(device)
             recon = model(x)
-            loss = criterion(recon[:, :, :base_dim], y[:, :, :base_dim])  # 🔥 only original 5 features
+
+            loss = criterion(recon[:, :, :base_dim], y[:, :, :base_dim])
             opt.zero_grad()
             loss.backward()
             opt.step()

@@ -103,7 +103,7 @@ N_HEADS     = 4
 N_LAYERS    = 2
 EPOCH       = 10 # 10
 LR          = 1e-3
-BASE_DIM    = 5
+BASE_DIM    = 3 # 3 base features (TRF_QNTY, AVG_SPD, OCPN_RATE)
 BATCH_SIZE  = 32
 
 # # RL hyperparameters

@@ -34,7 +34,7 @@ def split_dataset_siheung_sim(data_path, infer=False, seq_len=30, tr_ratio=0.7, 
     te_path     = DATA_PATH[data_path]['te']
     infer_path  = DATA_PATH[data_path]['infer']
 
-    print(f"Raw 데이터 로드: {raw_path}")
+    print(f"✅ Raw 데이터 로드: {raw_path}")
     df = pd.read_csv(raw_path) 
     
     # Text 타입의 TOT_DT datetime 타입으로의 변환
@@ -44,7 +44,7 @@ def split_dataset_siheung_sim(data_path, infer=False, seq_len=30, tr_ratio=0.7, 
     group_by_cols = [col for col in GRP_COLS if col != 'TOT_DT']
 
     if infer:
-        print("추론용 데이터 추출 모드...")
+        print("✅ 추론용 데이터 추출 모드...")
         infer_df_list = []
         groups = df.groupby(group_by_cols) 
         
@@ -58,7 +58,7 @@ def split_dataset_siheung_sim(data_path, infer=False, seq_len=30, tr_ratio=0.7, 
         print(f"추론용 데이터 저장 완료: {infer_path}")
 
     else:
-        print("데이터 분할 모드...")
+        print("✅ 데이터 분할 모드...")
         # 시계열 순서대로 분할하기 위해 정렬 확인
         df = df.sort_values(by='TOT_DT')
         
@@ -131,7 +131,7 @@ def scale_data(data, data_type, scaler_path, group_col = ['LINK_ID', 'LANE_NO'],
     df_scaled = df.copy()
 
     if data_type == 'tr':
-         print('  - Calculating group-wise StandardScaler for training set...')
+         print('✅ - Calculating group-wise StandardScaler for training set...')
          group_scalers = {}
          
          for group_name, group_df in df.groupby(group_col):
@@ -156,7 +156,7 @@ def scale_data(data, data_type, scaler_path, group_col = ['LINK_ID', 'LANE_NO'],
                 group_scalers = pickle.load(f)
         except FileNotFoundError:
             raise FileNotFoundError(f"❌ Error: Scaler file not found at {scaler_path}. Run with data_type='tr' first!")
-        print(f"  - Group Scalers loaded from {scaler_path}")
+        print(f"✅ - Group Scalers loaded from {scaler_path}")
         
         # 스케일링 적용
         for group_name, group_df in df.groupby(group_col):
@@ -314,7 +314,7 @@ def preprocess_siheung_real(data_path, infer=False, seq_len=30, tr_ratio=0.7, va
     group_by_cols = [col for col in GRP_COLS if col != 'TOT_DT'] # ['LINK_ID', 'LANE_NO']
 
     if infer:
-        print("추론용 데이터 추출 모드...")
+        print("✅ 추론용 데이터 추출 모드...")
         infer_df_list = []
         
         # LINK_ID, LANE_NO 별로 그룹화
@@ -328,11 +328,11 @@ def preprocess_siheung_real(data_path, infer=False, seq_len=30, tr_ratio=0.7, va
             
         infer_df = pd.concat(infer_df_list)
         infer_df.to_csv(infer_path, index=False)
-        print(f"추론용 데이터 저장 완료: {infer_path}")
+        print(f"✅추론용 데이터 저장 완료: {infer_path}")
 
 
     else:
-        print("데이터 분할 모드...")
+        print("✅ 데이터 분할 모드...")
         
         # 시계열 순서대로 순차 분할
         total_rows = len(df)

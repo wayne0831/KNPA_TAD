@@ -29,8 +29,8 @@ train_data_scl = scale_data(data        = train_data,
 
 #train_set, _ = load_dataset(csv_path=train_data, seq_len=SEQ_LEN, stride=STRIDE)
 train_set, _ = load_dataset(train_data_scl, seq_len=SEQ_LEN, stride=STRIDE)
-
 print('==============Data loaded!==============')
+
 
 # 이상탐지 모델 학습
 print('==============Train anomaly detection model==============')

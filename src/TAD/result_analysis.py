@@ -64,6 +64,14 @@ def detect_anomalies(model, dataset, meta_df, threshold_df=None, threshold=0.0, 
     # 3. 재구성 오류 계산
     errors = np.mean((recons[:, :, :base_dim] - targets[:, :, :base_dim]) ** 2, axis=(1, 2))
     
+    # ⭐️ 2. 속도 비교 로직 추가 (첫 번째 컬럼 [:, :, 1] 이 속도라고 가정)
+    # 시퀀스 전체에 대한 평균 속도를 계산합니다.
+    recon_speed_mean = np.mean(recons[:, :, 1], axis=1)  # 모델이 예측한 '정상 상태'의 속도 평균
+    target_speed_mean = np.mean(targets[:, :, 1], axis=1) # 실제 측정된 속도 평균
+    
+    # 실제 속도가 예측 속도보다 낮은 경우만 True인 마스크 생성
+    negative_anomaly_flag = target_speed_mean < recon_speed_mean
+
     result_df = meta_df.copy().reset_index(drop=True)
     result_df['recon_error'] = errors
     
@@ -81,12 +89,24 @@ def detect_anomalies(model, dataset, meta_df, threshold_df=None, threshold=0.0, 
             how='left'
         )
         result_df['Thresholds_applied'] = result_df[threshold_col_name].fillna(threshold) 
-        result_df['anomaly'] = (result_df['recon_error'] > result_df['Thresholds_applied']).astype(int)
+        #result_df['anomaly'] = (result_df['recon_error'] > result_df['Thresholds_applied']).astype(int)
+        
+        # ⭐️ 로직 수정: (에러 > 임계치) AND (실제속도 < 예측속도)
+        result_df['anomaly'] = (
+            (result_df['recon_error'] > result_df['Thresholds_applied']) & 
+            negative_anomaly_flag
+        ).astype(int)
     
     else:
         # 단일 임계값 적용 (예: Validation Reconstruction Error 계산 시)
         result_df['Thresholds_applied'] = threshold 
-        result_df['anomaly'] = (result_df['recon_error'] > threshold).astype(int) 
+        #result_df['anomaly'] = (result_df['recon_error'] > threshold).astype(int) 
+
+        # ⭐️ 로직 수정: (에러 > 임계치) AND (실제속도 < 예측속도)
+        result_df['anomaly'] = (
+            (result_df['recon_error'] > result_df['Thresholds_applied']) & 
+            negative_anomaly_flag
+        ).astype(int)
 
     return result_df[['TOT_DT', 'LINK_ID', 'LANE_NO', 'recon_error', 'Thresholds_applied', 'anomaly', 'pred']]
 
@@ -102,43 +122,6 @@ def apply_group_threshold(test_result_df, group_thresholds):
     merged = test_result_df.merge(group_thresholds, on= ['LINK_ID', 'LANE_NO'], how='left')
     merged['anomaly'] = (merged['recon_error'] > merged['threshold']).astype(int)
     return merged
-
-# ───── Average Compare & Domain Filter ─────
-def filter_by_domain(model, dataset, meta_df, base_dim=3):
-    """
-    1) anomaly==1 인 윈도우만 대상
-    2) 시퀀스 전체 평균 예측 vs 실제 계산
-    3) 도메인 조건:
-       avg_pred_VEHS  < avg_true_VEHS  AND
-       avg_pred_SPEED < avg_true_SPEED AND
-       avg_pred_OCC   > avg_true_OCC
-    4) final_anomaly 플래그 추가
-    """
-    df = meta_df.copy().reset_index(drop=True)
-    loader = DataLoader(dataset, batch_size=BATCH_SIZE, shuffle=False)
-    preds, trues = [], []
-
-    model.to(device).eval()
-    with torch.no_grad():
-        for x, y in loader:
-            x, y = x.to(device), y.to(device)
-            rec = model(x)
-            preds.append(rec[:, :, :base_dim].mean(dim=1).cpu().numpy())
-            trues.append(y[:, :, :base_dim].mean(dim=1).cpu().numpy())
-
-    pred_avg = np.concatenate(preds, axis=0)
-    true_avg = np.concatenate(trues, axis=0)
-
-    df[['avg_pred_VEHS','avg_pred_SPEED','avg_pred_OCC']] = pred_avg
-    df[['avg_true_VEHS','avg_true_SPEED','avg_true_OCC']] = true_avg
-
-    cond = (
-        (df['avg_pred_VEHS']  > df['avg_true_VEHS']) &
-        (df['avg_pred_SPEED'] > df['avg_true_SPEED']) &
-        (df['avg_pred_OCC']   < df['avg_true_OCC'])
-    )
-    df['final_anomaly'] = ((df['anomaly'] == 1) & cond).astype(int)
-    return df
 
 # ───── Aggregate Link+Time ─────
 def aggregate_link_time(df, col='final_anomaly'):
@@ -230,14 +213,14 @@ def run_test(model, base_dim, threshold_df, scaler_path, data_path_key, test_typ
     print("\n[Classification Report]")
     print(classification_report(y_true, y_pred, target_names=['Normal', 'Anomaly']))
     
-    if PIPELINE['visualize_conf_mat']:
-        plt.figure(figsize=(8, 6))
-        cm = confusion_matrix(y_true, y_pred)
-        disp = ConfusionMatrixDisplay(confusion_matrix=cm, display_labels=['Normal', 'Anomaly'])
-        disp.plot(cmap=plt.cm.Blues)
-        plt.title('Confusion Matrix (Test)')
-        plt.savefig('confusion_matrix_test.png') # 경로 지정 필요
-        print(f"✅ Confusion Matrix saved to {'confusion_matrix_test.png'}")
+    # if PIPELINE['visualize_conf_mat']:
+    #     plt.figure(figsize=(8, 6))
+    #     cm = confusion_matrix(y_true, y_pred)
+    #     disp = ConfusionMatrixDisplay(confusion_matrix=cm, display_labels=['Normal', 'Anomaly'])
+    #     disp.plot(cmap=plt.cm.Blues)
+    #     plt.title('Confusion Matrix (Test)')
+    #     plt.savefig('confusion_matrix_test.png') # 경로 지정 필요
+    #     print(f"✅ Confusion Matrix saved to {'confusion_matrix_test.png'}")
 
 
 # =========================================================================================================
@@ -288,3 +271,40 @@ def run_inference(model, base_dim, threshold_df, scaler_path, data_path_key, inf
 
     result_df.to_csv(RES_PATH['TAD']['infer_res'], index=False)
     print(f"✅ Inference Results saved to {RES_PATH['TAD']['infer_res']}")
+
+# ───── Average Compare & Domain Filter ─────
+def filter_by_domain(model, dataset, meta_df, base_dim=BASE_DIM):
+    """
+    1) anomaly==1 인 윈도우만 대상
+    2) 시퀀스 전체 평균 예측 vs 실제 계산
+    3) 도메인 조건:
+       avg_pred_VEHS  < avg_true_VEHS  AND
+       avg_pred_SPEED < avg_true_SPEED AND
+       avg_pred_OCC   > avg_true_OCC
+    4) final_anomaly 플래그 추가
+    """
+    df = meta_df.copy().reset_index(drop=True)
+    loader = DataLoader(dataset, batch_size=BATCH_SIZE, shuffle=False)
+    preds, trues = [], []
+
+    model.to(device).eval()
+    with torch.no_grad():
+        for x, y in loader:
+            x, y = x.to(device), y.to(device)
+            rec = model(x)
+            preds.append(rec[:, :, :base_dim].mean(dim=1).cpu().numpy())
+            trues.append(y[:, :, :base_dim].mean(dim=1).cpu().numpy())
+
+    pred_avg = np.concatenate(preds, axis=0)
+    true_avg = np.concatenate(trues, axis=0)
+
+    df[['avg_pred_VEHS','avg_pred_SPEED','avg_pred_OCC']] = pred_avg
+    df[['avg_true_VEHS','avg_true_SPEED','avg_true_OCC']] = true_avg
+
+    cond = (
+        (df['avg_pred_VEHS']  > df['avg_true_VEHS']) &
+        (df['avg_pred_SPEED'] > df['avg_true_SPEED']) &
+        (df['avg_pred_OCC']   < df['avg_true_OCC'])
+    )
+    df['final_anomaly'] = ((df['anomaly'] == 1) & cond).astype(int)
+    return df

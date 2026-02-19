@@ -69,7 +69,9 @@ def main():
                   scaler_path   = PICKLE_PATH['TAD']['scaler_stat'], 
                   data_path_key = TAD_VER,
                   infer_type    = 'infer')
-        
+    
+    #final_df = filter_by_domain(model=model, dataset, meta_df, base_dim=BASE_DIM)
+
     print("================== Inference Completed ==================")
 
 if __name__ == '__main__':
