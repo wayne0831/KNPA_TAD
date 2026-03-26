@@ -18,6 +18,7 @@ from sklearn.preprocessing import StandardScaler
 # ###########################################################################################################
 
 # raw data불러와서 train/valid/test로 구분
+# if-else문 제거(0326)
 split_dataset_siheung_sim(data_path   = TAD_VER, 
                           infer       = False, 
                           seq_len     = SEQ_LEN, 
