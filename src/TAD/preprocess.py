@@ -18,14 +18,11 @@ from sklearn.preprocessing import StandardScaler
 # ###########################################################################################################
 
 # raw data불러와서 train/valid/test로 구분
-if TAD_VER == 'SIHEUNG_SIM':
-    split_dataset_siheung_sim(data_path   = TAD_VER, 
-                              infer       = False, 
-                              seq_len     = SEQ_LEN, 
-                              tr_ratio    = 0.5, 
-                              val_ratio   = 0.5, 
-                              te_ratio    = 0.0, # 실제 운영시에는 testset 필요없음
-                              event_rules = None, 
-                              start_time  = None)
-elif TAD_VER == 'SIHEUNG_REAL':
-    pass
+split_dataset_siheung_sim(data_path   = TAD_VER, 
+                          infer       = False, 
+                          seq_len     = SEQ_LEN, 
+                          tr_ratio    = 0.5, 
+                          val_ratio   = 0.5, 
+                          te_ratio    = 0.0, # 실제 운영시에는 testset 필요없음
+                          event_rules = None, 
+                          start_time  = None)

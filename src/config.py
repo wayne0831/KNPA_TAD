@@ -9,7 +9,7 @@ import os
 ###########################################################################################################
 
 # 대상 데이터: SIHEUNG_SIM, SIHEUNG_REAL
-TAD_VER = 'SIHEUNG_SIM' 
+TAD_VER = 'SIHEUNG_REAL' 
 # RL_VER  = '0904_v1'
 
 ###########################################################################################################
@@ -26,11 +26,11 @@ DATA_PATH = { # 데이터셋 경로
         'infer': './data/siheung_sim/inference/SIHEUNG_SIM_INFER.csv',
     },
     'SIHEUNG_REAL': { # 시흥 스마트교차로 데이터
-        'raw':   './data/siheung_real/raw/siheung_14days_raw_v2.csv',   
-        'tr':    './data/siheung_real/train/siheung_14days_tr.csv', 
-        'val':   './data/siheung_real/valid/siheung_14days_val.csv',
-        'te':    './data/siheung_real/test/siheung_14days_te.csv',
-        'infer': './data/siheung_real/inference/siheung_14days_infer.csv',
+        'raw':   './data/siheung_real/raw/SIHEUNG_REAL_RAW.csv',  
+        'tr':    './data/siheung_real/train/SIHEUNG_REAL_TR.csv', 
+        'val':   './data/siheung_real/valid/SIHEUNG_REAL_VAL.csv',
+        'te':    './data/siheung_real/test/SIHEUNG_REAL_TE.csv',
+        'infer': './data/siheung_real/inference/SIHEUNG_REAL_INFER.csv',
     },
     # 'PANGYO_REAL': { # 판교 스마트교차로 데이터
     #     'raw':   './data/pangyo_real/raw/pangyo_14days_raw.csv',   

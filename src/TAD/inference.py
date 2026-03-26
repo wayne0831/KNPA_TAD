@@ -75,5 +75,4 @@ def main():
     print("================== Inference Completed ==================")
 
 if __name__ == '__main__':
-    main() 
-
+    main()
