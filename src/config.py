@@ -31,6 +31,7 @@ DATA_PATH = { # 데이터셋 경로
         'val':   './data/siheung_real/valid/SIHEUNG_REAL_VAL.csv',
         'te':    './data/siheung_real/test/SIHEUNG_REAL_TE.csv',
         'infer': './data/siheung_real/inference/SIHEUNG_REAL_INFER.csv',
+        'adj':   './data/siheung_real/adjacency/SIHEUNG_REAL_ADJ.csv' # 260506 추가: 인접링크 정보 (링크ID, 인접링크ID)
     },
     # 'PANGYO_REAL': { # 판교 스마트교차로 데이터
     #     'raw':   './data/pangyo_real/raw/pangyo_14days_raw.csv',   
